@@ -4,9 +4,118 @@
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
 from scrapy import signals
+from collections import defaultdict
+from scrapy.exceptions import  NotConfigured
+import random
+import redis
+from twisted.internet.error import ConnectionRefusedError, TimeoutError
 
 # useful for handling different item types with a single interface
 from itemadapter import is_item, ItemAdapter
+
+class RandomProxyMiddleware(object):
+
+    def __init__(self, settings):
+        # 初始化变量和配置
+        self.r = redis.Redis(host="host", password="password")
+        self.proxy_key = settings.get("PROXY_REDIS_KEY")
+        self.proxy_stats_key = self.proxy_key+"_stats"
+        self.state = defaultdict(int)
+        self.max_failed = 3
+
+    @property
+    def proxies(self):
+        proxies_b = self.r.lrange(self.proxy_key, 0, -1)
+        proxies = []
+        for proxy_b in proxies_b:
+            proxies.append(bytes.decode(proxy_b))
+        print("proxy是：", proxies)
+        return proxies
+
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        # 1.创建中间件对象
+        if not crawler.settings.getbool("HTTPPROXY_ENABLED"):
+            raise NotConfigured
+        return cls(crawler.settings)
+
+    def process_request(self, request, spider):
+        # 3.为每个request对象分配一个随机的ip代理
+        if self.proxies and not request.meta.get("proxy"):
+            request.meta["proxy"] = random.choice(self.proxies)
+
+    def process_response(self, request, response, spider):
+        # 4.请求成功，调用process_response
+        cur_proxy = request.meta.get("proxy")
+        # 判断是否被对方封禁
+        if response.status in (401, 403):
+            print(f"{cur_proxy} got wrong code {self.state[cur_proxy]} times")
+            # 给相应的IP失败次数+1
+            # self.state[cur_proxy] += 1
+            self.r.hincrby(self.proxy_stats_key, cur_proxy, 1)
+        # 当某个IP的失败次数累计到一定数量
+        failed_times = self.r.hget(self.proxy_stats_key, cur_proxy) or 0
+        if int(failed_times) >= self.max_failed:
+            print("got wrong http code {%s} when use %s" % (response.status, request.get("proxy")))
+            # 可以认为该IP已经被对方封禁了，从代理池中将该IP删除
+            self.remove_proxy(cur_proxy)
+            del request.meta["proxy"]
+            # 重新请求重新安排调度下载
+            return request
+        return response
+
+    def process_exception(self, request, exception, spider):
+        # 4.请求失败，调用process_exception
+        cur_proxy = request.meta.get("proxy")
+
+        # 如果本次请求使用了代理，并且网络请求报错，认为该IP出现问题了
+        if cur_proxy and isinstance(exception, (ConnectionRefusedError, TimeoutError)):
+            print(f"error occur where use proxy {exception} {cur_proxy}")
+            self.remove_proxy(cur_proxy)
+            del request.meta["proxy"]
+            return request
+
+
+    def remove_proxy(self, proxy):
+        """在代理IP列表中删除指定代理"""
+        if proxy in self.proxies:
+            self.r.lrem(self.proxy_key, 1, proxy)
+            print("remove %s from proxy list" % proxy)
+
+
+
+from scrapy.downloadermiddlewares.retry import RetryMiddleware
+from scrapy.utils.response import response_status_message
+
+import time
+
+
+class TooManyRequestsRetryMiddleware(RetryMiddleware):
+
+    def __init__(self, crawler):
+        super(TooManyRequestsRetryMiddleware, self).__init__(crawler.settings)
+        self.crawler = crawler
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls(crawler)
+
+    #设置返回 429 too many 请求 就停个60秒
+    def process_response(self, request, response, spider):
+        if request.meta.get('dont_retry', False):
+            return response
+        elif response.status == 429:
+            self.crawler.engine.pause()
+            time.sleep(60) # If the rate limit is renewed in a minute, put 60 seconds, and so on.
+            self.crawler.engine.unpause()
+            reason = response_status_message(response.status)
+            return self._retry(request, reason, spider) or response
+        elif response.status in self.retry_http_codes:
+            reason = response_status_message(response.status)
+            return self._retry(request, reason, spider) or response
+        return response
+
 
 
 class XinpianchangSpiderMiddleware:

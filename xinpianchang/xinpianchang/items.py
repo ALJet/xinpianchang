@@ -6,7 +6,8 @@
 import scrapy
 
 
-class MediaItem(scrapy.Item):
+class VideoItem(scrapy.Item):
+    table_name = 'video'
     pid = scrapy.Field()
     title = scrapy.Field()
     cover = scrapy.Field()
@@ -17,7 +18,7 @@ class MediaItem(scrapy.Item):
     media_1080_url = scrapy.Field()
     media_720_url = scrapy.Field()
     media_540_url = scrapy.Field()
-    media_360_url = scrapy.Field()
+    # media_360_url = scrapy.Field()
 
 
 
@@ -36,19 +37,20 @@ class PostItem(scrapy.Item):
 
 
 class CommentItem(scrapy.Item):
-    cid = scrapy.Field()
-    banner = scrapy.Field()
-    name = scrapy.Field()
+    table_name = 'comment'
+    comment_id = scrapy.Field()
+    pid = scrapy.Field()
+    uid = scrapy.Field()
     avatar = scrapy.Field()
-    intro = scrapy.Field()
+    uname = scrapy.Field()
+    created_at = scrapy.Field()
+    content = scrapy.Field()
     like_counts = scrapy.Field()
-    fans_counts = scrapy.Field()
-    follow_counts = scrapy.Field()
-    locations = scrapy.Field()
-    career = scrapy.Field()
+    referid = scrapy.Field()
 
 
 class ComposerItem(scrapy.Item):
+    table_name = 'composers'
     cid = scrapy.Field()
     banner = scrapy.Field()
     name = scrapy.Field()
@@ -61,19 +63,20 @@ class ComposerItem(scrapy.Item):
     career = scrapy.Field()
 
 
-class CommentItem(scrapy.Item):
-    commentid = scrapy.Field()
-    pid = scrapy.Field()
-    content = scrapy.Field()
-    like_counts = scrapy.Field()
-    created_at = scrapy.Field()
-    cid = scrapy.Field()
-    uname = scrapy.Field()
-    avatar = scrapy.Field()
-    reply = scrapy.Field()
+# class CommentItem(scrapy.Item):
+#     commentid = scrapy.Field()
+#     pid = scrapy.Field()
+#     content = scrapy.Field()
+#     like_counts = scrapy.Field()
+#     created_at = scrapy.Field()
+#     cid = scrapy.Field()
+#     uname = scrapy.Field()
+#     avatar = scrapy.Field()
+#     reply = scrapy.Field()
 
 
 class CopyrightItem(scrapy.Item):
+    table_name = 'copyrights'
     cid = scrapy.Field()
     pid = scrapy.Field()
     pcid = scrapy.Field()
