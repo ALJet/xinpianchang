@@ -7,12 +7,15 @@
 # useful for handling different item types with a single interface
 from itemadapter import ItemAdapter
 
-
 import pymysql
+from scrapy.exceptions import DropItem
 
 
 class MysqlPipeline:
     def __init__(self):
+        self.comment_set = set()
+        self.composers_set = set()
+        self.video_set = set()
         pass
 
     # 开始调用一次
@@ -37,6 +40,7 @@ class MysqlPipeline:
     def process_item(self, item, spider):
         # keys = item.keys()
         # values = list(item.values)   # 是一个元组-->集合
+        self.check_repeat(item)
         keys, values = zip(*item.items())
         sql = "insert into {}({}) values({}) ON DUPLICATE KEY UPDATE {}".format(
             item.table_name,
@@ -49,6 +53,24 @@ class MysqlPipeline:
         # 输出语句
         print(self.cur._last_executed)
         return item
+
+    # 除去重复的数据
+    def check_repeat(self, item):
+        if (item.table_name == 'comment'):
+            if item['comment_id'] in self.comment_set:
+                raise DropItem("Duplicate comment found:%s" % item)
+            else:
+                self.comment_set.add(item['comment_id'])
+        if (item.table_name == 'composers'):
+            if item['cid'] in self.composers_set:
+                raise DropItem("Duplicate composers found:%s" % item)
+            else:
+                self.composers_set.add(item['cid'])
+        if (item.table_name == 'video'):
+            if item['pid'] in self.video_set:
+                raise DropItem("Duplicate video found:%s" % item)
+            else:
+                self.video_set.add(item['pid'])
 
 # class XinpianchangPipeline:
 #
