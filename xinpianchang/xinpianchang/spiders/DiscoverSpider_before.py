@@ -30,8 +30,8 @@ def convert_int(s):
     return 0
 
 
-class DiscoverspiderSpider(scrapy.Spider):
-    name = 'DiscoverSpider'
+class DiscoverspiderSpider_before(scrapy.Spider):
+    name = 'DiscoverSpiderBefore'
     allowed_domains = ['www.xinpianchang.com', 'mod-api.xinpianchang.com', 'app.xinpianchang.com']
     start_urls = ['https://www.xinpianchang.com/channel/index/sort-like/']
 

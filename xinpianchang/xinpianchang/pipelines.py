@@ -21,6 +21,7 @@ class MysqlPipeline:
     # 开始调用一次
     def open_spider(self, spider):
         self.conn = pymysql.connect(
+            # master主机IP地址
             host='127.0.0.1',
             port=3306,
             db='xinpianchang',

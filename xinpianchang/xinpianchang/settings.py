@@ -71,7 +71,9 @@ PROXY_REDIS_KEY = "discovery:proxy"
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-   'xinpianchang.pipelines.MysqlPipeline': 300,
+    # 通过配置RedisPipeline将item写入key为 spider.name : items 的redis的list中，供后面的分布式处理item 这个已经由 scrapy-redis 实现，不需要我们写代码，直接使用即可
+    'scrapy_redis.pipelines.RedisPipeline': 100,
+    'xinpianchang.pipelines.MysqlPipeline': 300,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
@@ -116,16 +118,20 @@ USER_AGENT_LIST = [
 
 USER_AGENT = random.choice(USER_AGENT_LIST)
 
+# (可选)在redis中保持scrapy-redis用到的各个队列，从而允许暂停和暂停后恢复，也就是不清理redis queues
+SCHEDULER_PERSIST = True
 
+# 使用了scrapy_redis的调度器，在redis里分配请求
+SCHEDULER = "scrapy_redis.scheduler.Scheduler"
 
-# SCHEDULER = "scrapy_redis.scheduler.Scheduler"
-#
-# # Ensure all spiders share same duplicates filter through redis.
-# DUPEFILTER_CLASS = "scrapy_redis.dupefilter.RFPDupeFilter"
-# # REDIS_URL = 'redis://ip:6379'
-# # REDIS_HOST = 'host'
-# REDIS_HOST = 'localhost'
-# REDIS_PORT = 6379
-# REDIS_PARAMS = {
-#    'password': 'pass',
-# }
+# 使用了scrapy_redis的去重组件，在redis数据库里做去重
+# Ensure all spiders share same duplicates filter through redis.
+DUPEFILTER_CLASS = "scrapy_redis.dupefilter.RFPDupeFilter"
+# REDIS_URL = 'redis://ip:6379'
+# REDIS_HOST = 'host'
+#master主机IP地址
+REDIS_HOST = '127.0.0.1'
+REDIS_PORT = 6379
+REDIS_PARAMS = {
+    'password': '',
+}
